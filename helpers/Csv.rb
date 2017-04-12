@@ -11,6 +11,8 @@ class Csv
     @couch = options[:couch]
     @name  = options[:name]
     @path  = options[:path]
+    @locationList  = options[:locationList]
+    @userList      = options[:userList]
     @cachedResults = {}
 
   end
@@ -63,6 +65,7 @@ class Csv
       # make an array of resultIds for this trip
       results = resultIds.map { | resultId | getResult(resultId) }
 
+      # throttle code added to reduce the numnber of hits to the couchdb - allowing it to release some memory and recover
       throttle = throttle + 1
 
       puts throttle
@@ -90,17 +93,57 @@ class Csv
           if isTimeRelated && isntFalsy && groupTimeZone.nil?  then value = Time.at(value.to_i / 1000).strftime("%yy %mm %dd %Hh %Mm %Ss") end
           if isTimeRelated && isntFalsy && !groupTimeZone.nil? then value = Time.at(value.to_i / 1000).getlocal(groupTimeZone).strftime("%yy %mm %dd %Hh %Mm %Ss") end
 
-          unless indexByMachineName[machineName] # Have we seen the machine name before?
-            machineNames.push machineName
-            columnNames.push key
-            indexByMachineName[machineName] = machineNames.index(machineName)
+          #hack for grabbing MPESA number along with enumerator
+          requireUserFetch = key.match(/enumerator/)
+
+          if requireUserFetch then
+            unless indexByMachineName["#{machineName}-enumerator"] # Have we seen the machine name before?
+              machineNames.push "#{machineName}-enumerator"
+              indexByMachineName["#{machineName}-enumerator"] = machineNames.index("#{machineName}-enumerator")
+              columnNames.push key
+            end
+            index = indexByMachineName["#{machineName}-enumerator"]
+            row[index] = value
+
+            unless indexByMachineName["#{machineName}-role"] # Have we seen the machine name before?
+              machineNames.push "#{machineName}-role"
+              indexByMachineName["#{machineName}-role"] = machineNames.index("#{machineName}-role")
+              columnNames.push "role"
+            end
+            index = indexByMachineName["#{machineName}-role"]
+            tmpUser    = @userList.getUser(value)
+            row[index] = (tmpUser["role"] || "---")
+            
+            unless indexByMachineName["#{machineName}-mpesa"] # Have we seen the machine name before?
+              machineNames.push "#{machineName}-mpesa"
+              indexByMachineName["#{machineName}-mpesa"] = machineNames.index("#{machineName}-mpesa")
+              columnNames.push "mpesa"
+            end
+            index      = indexByMachineName["#{machineName}-mpesa"]
+            tmpUser    = @userList.getUser(value)
+            row[index] = (tmpUser["mpesaPhone"] || tmpUser["mPesaNumber"] || "---")
+
+            unless indexByMachineName["#{machineName}-phone"] # Have we seen the machine name before?
+              machineNames.push "#{machineName}-phone"
+              indexByMachineName["#{machineName}-phone"] = machineNames.index("#{machineName}-phone")
+              columnNames.push "phone"
+            end
+            index      = indexByMachineName["#{machineName}-phone"]
+            tmpUser    = @userList.getUser(value)
+            row[index] = (tmpUser["phone"] || tmpUser["phoneNumber"] || "---")
+
+          else
+
+            # puts "Col: #{key}, Val: #{value}"
+            unless indexByMachineName[machineName] # Have we seen the machine name before?
+              machineNames.push machineName
+              indexByMachineName[machineName] = machineNames.index(machineName)
+              columnNames.push key
+            end
+            index = indexByMachineName[machineName]
+            row[index] = value
 
           end
-
-          index = indexByMachineName[machineName]
-
-          row[index] = value
-
         end
 
       }

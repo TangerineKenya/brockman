@@ -56,21 +56,33 @@ class Csv
     throttle = 0
 
     # save all the result ids in order so we can can grab chunks
-    @orderedResults = []
-    resultsByTripId.each { | tripId, resultIds| @orderedResults.concat(resultIds) }
+    # @orderedResults = []
+    # resultsByTripId.each { | tripId, resultIds| @orderedResults.concat(resultIds) }
 
     # go through each trip and it's array of resultIds
     resultsByTripId.each { | tripId, resultIds |
 
       # make an array of resultIds for this trip
-      results = resultIds.map { | resultId | getResult(resultId) }
+      # results = resultIds.map { | resultId | getResult(resultId) }
 
-      # throttle code added to reduce the numnber of hits to the couchdb - allowing it to release some memory and recover
+      nextResults = @couch.postRequest({
+        :view => "csvRows",
+        :data => { "keys" => resultIds },
+        :parseJson => true,
+        :categoryCache => true
+      })
+
+
+      results = nextResults['rows'].map { |row| row['value'] }
+
+      puts results
+
+      # throttle code added to reduce the number of hits to the couchdb - allowing it to release some memory and recover
       throttle = throttle + 1
 
       puts throttle
 
-      if throttle % 500 == 0
+      if throttle % 250 == 0
         puts "Throttling..."
         sleep 3
       end
@@ -78,7 +90,8 @@ class Csv
       row = []
 
       results.each_with_index { | result, resultIndex |
-
+        puts "result #{resultIndex}"
+        puts "result #{result}"
         next if result.nil?
 
         for cell in result

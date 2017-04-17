@@ -75,23 +75,23 @@ class Csv
 
       results = nextResults['rows'].map { |row| row['value'] }
 
-      puts results
+      #puts results
 
       # throttle code added to reduce the number of hits to the couchdb - allowing it to release some memory and recover
       throttle = throttle + 1
 
-      puts throttle
+      #puts throttle
 
       if throttle % 250 == 0
-        puts "Throttling..."
+        #puts "Throttling..."
         sleep 3
       end
 
       row = []
 
       results.each_with_index { | result, resultIndex |
-        puts "result #{resultIndex}"
-        puts "result #{result}"
+        #puts "result #{resultIndex}"
+        #puts "result #{result}"
         next if result.nil?
 
         for cell in result
